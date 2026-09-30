@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 遠軽町 避難施設(hinan.csv)を QGIS の「ハザードマップ」グループに追加する。
-QGIS の Python コンソール(プラグイン > Python コンソール)で
-「エディタを表示」→ このファイルを開く → 実行 で使用。
+使い方: QGIS の Python コンソールに次の1行を貼り付けて Enter（貼り付け実行では空行で崩れるため、
+このファイルの中身を直接貼らないこと）:
+    exec(open(r'このファイルのフルパス', encoding='utf-8').read())
+または「エディタを表示」→ このファイルを開く → ▶実行。
 
 - 元の hinan.csv は変更しない。EngaruHazardGISData\hinan.gpkg を作成して読み込む
 - アイコンは EngaruHazardGISData\img\ に SVG として書き出す（防災マップ HTML と同一図形）
@@ -48,6 +50,8 @@ for key, text in SVGS.items():
 # ---- 2. CSV を読み GeoPackage にする（列位置固定：HTML と同じ） ----
 # 0:no 1:name 2:lat 3:lng 4:kennyo 5:kinkyuu 6:fukushi 7:address 8:tel
 # 9:flood 10:slope 11:quake 12:fire 13:target
+if not os.path.exists(CSV_PATH):
+    raise FileNotFoundError('hinan.csv が見つかりません: %s（BASE を確認）' % CSV_PATH)
 with open(CSV_PATH, encoding='utf-8-sig', newline='') as f:
     rows = list(csv.reader(f))[1:]
 
@@ -75,6 +79,8 @@ for r in rows:
     ft.setAttributes([g(0), g(1), g(4), g(5), g(6), g(7), g(8), g(9), g(10), g(11), g(12), g(13), lat, lng])
     feats.append(ft)
 pr.addFeatures(feats); tmp.updateExtents()
+if not feats:
+    raise RuntimeError('施設が0件です。CSVの列(緯度・経度)を確認してください')
 
 # 既存レイヤが gpkg を掴んでいると上書きできないので先に外す
 proj = QgsProject.instance()
@@ -118,7 +124,11 @@ lab.fieldName = 'name'
 fmt = QgsTextFormat(); fmt.setFont(QFont('Meiryo')); fmt.setSize(9); fmt.setColor(QColor('#1a1a1a'))
 buf = QgsTextBufferSettings(); buf.setEnabled(True); buf.setSize(1.0); buf.setColor(QColor('white'))
 fmt.setBuffer(buf); lab.setFormat(fmt)
-lab.placement = QgsPalLayerSettings.OverPoint
+try:
+    from qgis.core import Qgis
+    lab.placement = Qgis.LabelPlacement.OverPoint
+except Exception:
+    lab.placement = QgsPalLayerSettings.OverPoint
 lab.xOffset = 0; lab.yOffset = 1.5
 lab.scaleVisibility = True; lab.maximumScale = 0; lab.minimumScale = 15000
 for lyr in made:
